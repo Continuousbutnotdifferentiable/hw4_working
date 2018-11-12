@@ -10,6 +10,8 @@
 
 #pragma
 
+
+using evictor_type = std::function<uint32_t(void)>;
 using key_equality = std::function<bool(Cache::key_type, Cache::key_type)>;
 
 // This is a universal hash function adapted from:
@@ -32,9 +34,10 @@ struct DefaultHash {
 
 struct Cache::Impl {
 
-
+    int success = 0;
+    int fail_not_in = 1;
+    int fail_bad_size = 2;
     index_type maxmem_;
-    evictor_type evictor_;
     hash_func hasher_;
     index_type memused_;
     index_type items_in_;
@@ -45,8 +48,7 @@ struct Cache::Impl {
     std::string evictor_type_;
 
     Impl(index_type maxmem,
-         evictor_type evictor,
-         hash_func hasher = DefaultHash()) : maxmem_(maxmem), evictor_(evictor), hasher_(hasher), memused_(0),
+         hash_func hasher = DefaultHash()) : maxmem_(maxmem), hasher_(hasher), memused_(0),
                                              items_in_(0), max_load_(.5), my_cache_(0, hasher), my_size_cache_(0,hasher),
                                              key_list_(maxmem), evictor_type_("fifo") {
         // Set max load factor for my_cache_ to .5
@@ -62,14 +64,14 @@ struct Cache::Impl {
     // Both the key and the value are to be deep-copied (not just pointer copied).
     // If maxmem capacity is exceeded, sufficient values will be removed
     // from the cache to accomodate the new value.
-    void set(key_type key, val_type val, index_type size) {
+    int set(key_type key, val_type val, index_type size) {
         if (size > maxmem_) 
         {
-            return;
+            return fail_bad_size;
         } 
         if (size < 0)
         {
-            return;
+            return fail_bad_size;
         }
         index_type get_size = 0;
         get(key,get_size);
@@ -83,7 +85,7 @@ struct Cache::Impl {
             memused_ += size;
             evictor(evictor_type_, "include", key);
             assert(my_cache_.load_factor() <= my_cache_.max_load_factor());
-            return;
+            return success;
         } else {
             while ((memused_ + size) > maxmem_)
                 evictor(evictor_type_, "evict", key);
@@ -93,7 +95,7 @@ struct Cache::Impl {
         memused_ += size;
         evictor(evictor_type_, "include", key);
         assert(my_cache_.load_factor() <= my_cache_.max_load_factor());
-        return;
+        return success;
     }
 
     // Retrieve a pointer to the value associated with key in the cache,
@@ -126,12 +128,12 @@ struct Cache::Impl {
     }
 
     // Delete an object from the cache, if it's still there
-    void del(key_type key) {
+    int del(key_type key) {
         index_type val_size = 0;
         val_type is_in = get(key, val_size);
 
         if (is_in == NULL) {
-            return;
+            return fail_not_in;
         }
         // Reduce the size of memused_appropriately 
         if (val_size != 0) {
@@ -140,6 +142,7 @@ struct Cache::Impl {
         my_cache_.erase(key);
         my_size_cache_.erase(key);
         evictor(evictor_type_, "erase", key);
+        return success;
     }
 
     // Returns the amount of memory used by all cache values (not keys).
@@ -203,8 +206,7 @@ struct Cache::Impl {
 
 // Create a new cache object with a given maximum memory capacity.
 Cache::Cache(index_type maxmem,
-             evictor_type evictor,
-             hash_func hasher) : pImpl_(new Impl(maxmem, evictor, hasher)) {
+             hash_func hasher) : pImpl_(new Impl(maxmem, hasher)) {
 }
 
 Cache::~Cache() {
@@ -216,8 +218,8 @@ Cache::~Cache() {
 // Both the key and the value are to be deep-copied (not just pointer copied).
 // If maxmem capacity is exceeded, sufficient values will be removed
 // from the cache to accomodate the new value.
-void Cache::set(key_type key, val_type val, index_type size) {
-    pImpl_->set(key, val, size);
+int Cache::set(key_type key, val_type val, index_type size) {
+    return pImpl_->set(key, val, size);
 }
 
 // Retrieve a pointer to the value associated with key in the cache,
@@ -228,8 +230,8 @@ Cache::val_type Cache::get(key_type key, index_type &val_size) const {
 }
 
 // Delete an object from the cache, if it's still there
-void Cache::del(key_type key) {
-    pImpl_->del(key);
+int Cache::del(key_type key) {
+    return pImpl_->del(key);
 }
 
 // Compute the total amount of memory used up by all cache values (not keys)

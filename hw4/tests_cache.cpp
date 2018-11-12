@@ -85,7 +85,7 @@ TEST_CASE("Set/Get","[single-file]")
     // Initialize cache and key/value variables/pointers
         const Cache::key_type key1 = "one";
         const int val = 1;
-        const bool val2 = FALSE;
+        const bool val2 = 0;
         const Cache::val_type point1 = &val;
         const Cache::val_type point2 = &val2;
         const Cache::index_type size1 = sizeof(val);
