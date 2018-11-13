@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
             {
                 return(crow::response(400,"400 KEY NOT IN CACHE \n"));
             }
-            return crow::response(200,"200 VALUE DELETED");
+            return crow::response(200,"200 VALUE DELETED\n");
 
         } else if (req.method == "GET"_method) {
             Cache::index_type sized;
@@ -99,9 +99,12 @@ int main(int argc, char *argv[])
             {
                 return(crow::response(400,"400 KEY NOT IN CACHE \n"));
             }
-            const uint32_t &val = *(static_cast<const u_int32_t *>(the_point));
+            // Convert pointer to string and return a json with the k/v pair
+            std::stringstream ss;
+            ss << the_point;
+            std::string point_string = ss.str();
             crow::json::wvalue return_json;
-            return_json["value"] = val;
+            return_json["value"] = point_string;
             return_json["key"] = key;
             return crow::response{return_json};
         } else if (req.method == "HEAD"_method) {
@@ -110,6 +113,8 @@ int main(int argc, char *argv[])
             resp.add_header("Accept","text/plain");
             resp.add_header("Accept-Charset","utf-8");
             resp.add_header("Content-Type","text/plain");
+            Cache::index_type space = (*CACHE_PTR).space_used();
+            resp.add_header("Memory Used",std::to_string(space));
             return resp;
 
         } else {

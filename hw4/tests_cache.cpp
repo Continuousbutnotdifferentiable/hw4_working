@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "cache.cpp"
+#include "cache.cc"
 
 TEST_CASE("Set/Get","[single-file]")
 {

@@ -1,7 +1,8 @@
-### CS389 HW3: Testy Cache.
+### CS389 HW4: Lets network.
 
 #### David Herrero-Quevedo & Michael Kalange
 
+We used modified versions of Marika and Jill's cache
 need to ensure evictor implementation works with my_size_cache_
 write test to update value
 
